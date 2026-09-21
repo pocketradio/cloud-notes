@@ -3,6 +3,7 @@ package endpoints
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -85,4 +86,74 @@ func (N *Notelist) GetOneNote(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(requestedNote)
 	}
 
+}
+
+func (N *Notelist) DeleteNote(w http.ResponseWriter, r *http.Request) {
+
+	deleteID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "Please enter a valid ID", 400)
+		return
+	}
+
+	flag := false
+
+	for idx, note := range N.notes {
+		if note.NoteID == deleteID {
+			flag = true
+			N.notes = slices.Delete(N.notes, idx, idx+1)
+			break
+		}
+	}
+
+	if !flag {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error": "Note doesn't exist for the given ID",
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "note deleted successfully",
+	})
+}
+
+func (N *Notelist) UpdateNote(w http.ResponseWriter, r *http.Request) {
+	updateID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "Please enter a valid ID", http.StatusBadRequest)
+		return
+	}
+
+	var updatedNote Note
+	if err := json.NewDecoder(r.Body).Decode(&updatedNote); err != nil {
+		http.Error(w, "Invalid json payload", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(updatedNote.Title) == "" || strings.TrimSpace(updatedNote.Content) == "" {
+		http.Error(w, "title and content are required", http.StatusBadRequest)
+		return
+	}
+
+	for idx, note := range N.notes {
+		if note.NoteID == updateID {
+			updatedNote.NoteID = updateID
+			N.notes[idx] = updatedNote
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(updatedNote)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error": "Note doesn't exist for the given ID",
+	})
 }

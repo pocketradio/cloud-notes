@@ -11,5 +11,8 @@ func New(notesList *endpoints.Notelist) *http.ServeMux {
 	mux.HandleFunc("POST /notes", notesList.CreateNote)
 	mux.HandleFunc("GET /notes", notesList.GetNotes)
 	mux.HandleFunc("GET /notes/{id}", notesList.GetOneNote)
+
+	mux.HandleFunc("DELETE /notes/{id}", notesList.DeleteNote)
+	mux.HandleFunc("PUT /notes/{id}", notesList.UpdateNote)
 	return mux
 }
