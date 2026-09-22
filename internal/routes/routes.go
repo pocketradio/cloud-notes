@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func New(notesList *endpoints.Notelist) *http.ServeMux {
+func New(notesList *endpoints.Notelist, fileHandler *endpoints.FileHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", endpoints.HealthCheck)
 	mux.HandleFunc("POST /notes", notesList.CreateNote)
@@ -14,5 +14,7 @@ func New(notesList *endpoints.Notelist) *http.ServeMux {
 
 	mux.HandleFunc("DELETE /notes/{id}", notesList.DeleteNote)
 	mux.HandleFunc("PUT /notes/{id}", notesList.UpdateNote)
+	mux.HandleFunc("GET /files", fileHandler.ListFiles)
+	mux.HandleFunc("POST /files", fileHandler.UploadFile)
 	return mux
 }
