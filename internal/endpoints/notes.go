@@ -1,9 +1,10 @@
 package endpoints
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -16,14 +17,16 @@ type Note struct {
 }
 
 type Notelist struct {
-	notes []Note
+	db *sql.DB
+}
+
+func NewList(db *sql.DB) *Notelist {
+	return &Notelist{db: db}
 }
 
 func (N *Notelist) CreateNote(w http.ResponseWriter, r *http.Request) {
 	var note Note
-
-	err := json.NewDecoder(r.Body).Decode(&note)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, "Invalid json payload", http.StatusBadRequest)
 		return
 	}
@@ -31,95 +34,113 @@ func (N *Notelist) CreateNote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "title and content are required", http.StatusBadRequest)
 		return
 	}
+
 	note.NoteID = uuid.New()
-	N.notes = append(N.notes, note)
+	_, err := N.db.ExecContext(r.Context(),
+		"INSERT INTO notes (id, title, content) VALUES (?, ?, ?)",
+		note.NoteID.String(), note.Title, note.Content,
+	)
+	if err != nil {
+		http.Error(w, "failed to create note", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(note)
-}
-
-func NewList() *Notelist {
-	return &Notelist{
-		notes: []Note{},
-	}
+	_ = json.NewEncoder(w).Encode(note)
 }
 
 func (N *Notelist) GetNotes(w http.ResponseWriter, r *http.Request) {
+	rows, err := N.db.QueryContext(r.Context(), "SELECT id, title, content FROM notes ORDER BY created_at DESC")
+	if err != nil {
+		http.Error(w, "failed to get notes", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(N.notes); err != nil {
-		http.Error(w, "failed to get notes", 500)
+	notes := []Note{}
+	for rows.Next() {
+		var note Note
+		var id string
+		if err := rows.Scan(&id, &note.Title, &note.Content); err != nil {
+			http.Error(w, "failed to read note", http.StatusInternalServerError)
+			return
+		}
+		note.NoteID, err = uuid.Parse(id)
+		if err != nil {
+			http.Error(w, "invalid note id in database", http.StatusInternalServerError)
+			return
+		}
+		notes = append(notes, note)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "failed to get notes", http.StatusInternalServerError)
+		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(notes)
 }
 
 func (N *Notelist) GetOneNote(w http.ResponseWriter, r *http.Request) {
-
 	reqID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "Please enter a valid ID", 400)
+		http.Error(w, "Please enter a valid ID", http.StatusBadRequest)
 		return
 	}
 
-	flag := false
-
-	var requestedNote Note
-	for _, note := range N.notes {
-
-		if note.NoteID == reqID {
-			requestedNote = note
-			flag = true
-			break
-		}
-	}
-
-	if !flag {
+	var note Note
+	var id string
+	err = N.db.QueryRowContext(r.Context(),
+		"SELECT id, title, content FROM notes WHERE id = ?", reqID.String(),
+	).Scan(&id, &note.Title, &note.Content)
+	if errors.Is(err, sql.ErrNoRows) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error": "Note doesn't exist for the given ID",
-		})
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(requestedNote)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Note doesn't exist for the given ID"})
+		return
 	}
-
-}
-
-func (N *Notelist) DeleteNote(w http.ResponseWriter, r *http.Request) {
-
-	deleteID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "Please enter a valid ID", 400)
+		http.Error(w, "failed to get note", http.StatusInternalServerError)
 		return
 	}
 
-	flag := false
-
-	for idx, note := range N.notes {
-		if note.NoteID == deleteID {
-			flag = true
-			N.notes = slices.Delete(N.notes, idx, idx+1)
-			break
-		}
-	}
-
-	if !flag {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error": "Note doesn't exist for the given ID",
-		})
+	note.NoteID, err = uuid.Parse(id)
+	if err != nil {
+		http.Error(w, "invalid note id in database", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"message": "note deleted successfully",
-	})
+	_ = json.NewEncoder(w).Encode(note)
+}
+
+func (N *Notelist) DeleteNote(w http.ResponseWriter, r *http.Request) {
+	deleteID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "Please enter a valid ID", http.StatusBadRequest)
+		return
+	}
+
+	result, err := N.db.ExecContext(r.Context(), "DELETE FROM notes WHERE id = ?", deleteID.String())
+	if err != nil {
+		http.Error(w, "failed to delete note", http.StatusInternalServerError)
+		return
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "failed to delete note", http.StatusInternalServerError)
+		return
+	}
+	if count == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Note doesn't exist for the given ID"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "note deleted successfully"})
 }
 
 func (N *Notelist) UpdateNote(w http.ResponseWriter, r *http.Request) {
@@ -139,21 +160,27 @@ func (N *Notelist) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for idx, note := range N.notes {
-		if note.NoteID == updateID {
-			updatedNote.NoteID = updateID
-			N.notes[idx] = updatedNote
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(updatedNote)
-			return
-		}
+	result, err := N.db.ExecContext(r.Context(),
+		"UPDATE notes SET title = ?, content = ? WHERE id = ?",
+		updatedNote.Title, updatedNote.Content, updateID.String(),
+	)
+	if err != nil {
+		http.Error(w, "failed to update note", http.StatusInternalServerError)
+		return
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "failed to update note", http.StatusInternalServerError)
+		return
+	}
+	if count == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Note doesn't exist for the given ID"})
+		return
 	}
 
+	updatedNote.NoteID = updateID
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotFound)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"error": "Note doesn't exist for the given ID",
-	})
+	_ = json.NewEncoder(w).Encode(updatedNote)
 }
