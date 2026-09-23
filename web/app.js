@@ -9,27 +9,26 @@ async function request(url, options) {
   const data = await response.json().catch(() => response.text());
   if (!response.ok) throw new Error(JSON.stringify(data));
   show(data);
+  return data;
 }
 
-function noteBody() {
+function noteBody(titleId, contentId) {
   return JSON.stringify({
-    title: document.querySelector("#note-title").value,
-    content: document.querySelector("#note-content").value,
+    title: document.querySelector(`#${titleId}`).value,
+    content: document.querySelector(`#${contentId}`).value,
   });
 }
 
 document.querySelector("#create-note").onclick = async () => {
   try {
-    const response = await fetch("/notes", {
+    const note = await request("/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: noteBody(),
+      body: noteBody("create-title", "create-content"),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(data));
-
-    document.querySelector("#note-id").value = data.id;
-    show(data);
+    document.querySelector("#get-note-id").value = note.id;
+    document.querySelector("#update-note-id").value = note.id;
+    document.querySelector("#delete-note-id").value = note.id;
   } catch (error) {
     show({ error: error.message });
   }
@@ -39,26 +38,32 @@ document.querySelector("#list-notes").onclick = () => request("/notes")
   .catch(error => show({ error: error.message }));
 
 document.querySelector("#get-note").onclick = () => request(
-  `/notes/${document.querySelector("#note-id").value}`,
+  `/notes/${document.querySelector("#get-note-id").value}`,
 ).catch(error => show({ error: error.message }));
 
 document.querySelector("#update-note").onclick = () => request(
-  `/notes/${document.querySelector("#note-id").value}`,
+  `/notes/${document.querySelector("#update-note-id").value}`,
   {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: noteBody(),
+    body: noteBody("update-title", "update-content"),
   },
 ).catch(error => show({ error: error.message }));
 
 document.querySelector("#delete-note").onclick = () => request(
-  `/notes/${document.querySelector("#note-id").value}`,
+  `/notes/${document.querySelector("#delete-note-id").value}`,
   { method: "DELETE" },
 ).catch(error => show({ error: error.message }));
 
 document.querySelector("#upload-file").onclick = () => {
+  const selectedFile = document.querySelector("#file").files[0];
+  if (!selectedFile) {
+    show({ error: "choose a file first" });
+    return;
+  }
+
   const form = new FormData();
-  form.append("file", document.querySelector("#file").files[0]);
+  form.append("file", selectedFile);
   request("/files", { method: "POST", body: form })
     .catch(error => show({ error: error.message }));
 };
@@ -67,7 +72,7 @@ document.querySelector("#list-files").onclick = () => request("/files")
   .catch(error => show({ error: error.message }));
 
 document.querySelector("#view-file").onclick = async () => {
-  const key = document.querySelector("#file-key").value;
+  const key = document.querySelector("#view-file-key").value;
   try {
     const response = await fetch(`/files/${encodeURIComponent(key)}`);
     if (!response.ok) throw new Error(await response.text());

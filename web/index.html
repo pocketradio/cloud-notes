@@ -15,8 +15,8 @@
       font: 16px system-ui, sans-serif;
     }
     .panel {
-      margin: 22px 0;
-      padding: 20px;
+      margin: 16px 0;
+      padding: 18px;
       border: 1px solid #262626;
       border-radius: 8px;
       background: #0b0b0b;
@@ -31,10 +31,11 @@
       color: #e5e7eb;
     }
     input, textarea { width: 100%; }
-    textarea { min-height: 90px; resize: vertical; }
+    textarea { min-height: 80px; resize: vertical; }
     button { cursor: pointer; }
     button:hover { background: #262626; }
-    h1, h2 { color: #93c5fd; }
+    h1 { color: #93c5fd; }
+    h2 { margin-top: 0; color: #93c5fd; }
     pre {
       min-height: 80px;
       padding: 14px;
@@ -49,25 +50,52 @@
   <h1>Cloud Notes</h1>
 
   <section class="panel">
-    <h2>Notes</h2>
-    <input id="note-id" placeholder="note id">
-    <input id="note-title" placeholder="title">
-    <textarea id="note-content" placeholder="content"></textarea>
-    <br>
+    <h2>Create note</h2>
+    <input id="create-title" placeholder="title">
+    <textarea id="create-content" placeholder="content"></textarea>
     <button id="create-note">Create</button>
-    <button id="list-notes">List</button>
-    <button id="get-note">Get one</button>
-    <button id="update-note">Update</button>
-    <button id="delete-note">Delete</button>
   </section>
 
   <section class="panel">
-    <h2>Files</h2>
+    <h2>Get all notes</h2>
+    <button id="list-notes">List notes</button>
+  </section>
+
+  <section class="panel">
+    <h2>Get one note</h2>
+    <input id="get-note-id" placeholder="note id">
+    <button id="get-note">Get note</button>
+  </section>
+
+  <section class="panel">
+    <h2>Update note</h2>
+    <input id="update-note-id" placeholder="note id">
+    <input id="update-title" placeholder="new title">
+    <textarea id="update-content" placeholder="new content"></textarea>
+    <button id="update-note">Update note</button>
+  </section>
+
+  <section class="panel">
+    <h2>Delete note</h2>
+    <input id="delete-note-id" placeholder="note id">
+    <button id="delete-note">Delete note</button>
+  </section>
+
+  <section class="panel">
+    <h2>Upload file</h2>
     <input id="file" type="file">
-    <input id="file-key" placeholder="file key">
-    <button id="upload-file">Upload</button>
-    <button id="list-files">List</button>
-    <button id="view-file">View</button>
+    <button id="upload-file">Upload file</button>
+  </section>
+
+  <section class="panel">
+    <h2>Get files</h2>
+    <button id="list-files">List files</button>
+  </section>
+
+  <section class="panel">
+    <h2>View file</h2>
+    <input id="view-file-key" placeholder="file key">
+    <button id="view-file">View file</button>
   </section>
 
   <section class="panel">
