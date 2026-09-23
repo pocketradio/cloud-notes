@@ -16,6 +16,7 @@ func New(notesList *endpoints.Notelist, fileHandler *endpoints.FileHandler) *htt
 	mux.HandleFunc("PUT /notes/{id}", notesList.UpdateNote)
 	mux.HandleFunc("GET /files", fileHandler.ListFiles)
 	mux.HandleFunc("POST /files", fileHandler.UploadFile)
+	mux.HandleFunc("GET /files/{key}", fileHandler.GetFile)
 	mux.Handle("/", http.FileServer(http.Dir("web")))
 	return mux
 }

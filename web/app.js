@@ -54,3 +54,14 @@ document.querySelector("#upload-file").onclick = () => {
 
 document.querySelector("#list-files").onclick = () => request("/files")
   .catch(error => show({ error: error.message }));
+
+document.querySelector("#view-file").onclick = async () => {
+  const key = document.querySelector("#file-key").value;
+  try {
+    const response = await fetch(`/files/${encodeURIComponent(key)}`);
+    if (!response.ok) throw new Error(await response.text());
+    show(await response.text());
+  } catch (error) {
+    show({ error: error.message });
+  }
+};

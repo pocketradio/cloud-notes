@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"path"
 
@@ -84,4 +85,31 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"key": key,
 	})
+}
+
+func (h *FileHandler) GetFile(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	if key == "" {
+		http.Error(w, "file key is required", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.client.GetObject(r.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(h.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		http.Error(w, "failed to get file", http.StatusNotFound)
+		return
+	}
+	defer result.Body.Close()
+
+	if result.ContentType != nil {
+		w.Header().Set("Content-Type", aws.ToString(result.ContentType))
+	}
+	w.Header().Set("Content-Disposition", "inline")
+
+	if _, err := io.Copy(w, result.Body); err != nil {
+		return
+	}
 }
