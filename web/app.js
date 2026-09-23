@@ -18,11 +18,22 @@ function noteBody() {
   });
 }
 
-document.querySelector("#create-note").onclick = () => request("/notes", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: noteBody(),
-}).catch(error => show({ error: error.message }));
+document.querySelector("#create-note").onclick = async () => {
+  try {
+    const response = await fetch("/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: noteBody(),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(data));
+
+    document.querySelector("#note-id").value = data.id;
+    show(data);
+  } catch (error) {
+    show({ error: error.message });
+  }
+};
 
 document.querySelector("#list-notes").onclick = () => request("/notes")
   .catch(error => show({ error: error.message }));
