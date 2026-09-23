@@ -21,6 +21,16 @@
       border-radius: 8px;
       background: #0b0b0b;
     }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 16px;
+      align-items: start;
+    }
+    .output-panel {
+      position: sticky;
+      top: 20px;
+    }
     input, textarea, button {
       box-sizing: border-box;
       margin: 4px;
@@ -44,11 +54,17 @@
       border: 1px solid #262626;
       border-radius: 5px;
     }
+    @media (max-width: 700px) {
+      .workspace { grid-template-columns: 1fr; }
+      .output-panel { position: static; }
+    }
   </style>
 </head>
 <body>
   <h1>Cloud Notes</h1>
 
+  <div class="workspace">
+  <main>
   <section class="panel">
     <h2>Create note</h2>
     <input id="create-title" placeholder="title">
@@ -97,11 +113,13 @@
     <input id="view-file-key" placeholder="file key">
     <button id="view-file">View file</button>
   </section>
+  </main>
 
-  <section class="panel">
+  <aside class="panel output-panel">
     <h2>Output</h2>
     <pre id="output"></pre>
-  </section>
+  </aside>
+  </div>
 
   <script src="/app.js"></script>
 </body>
